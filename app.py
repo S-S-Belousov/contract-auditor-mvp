@@ -14,10 +14,8 @@ if "lang" not in st.session_state:
     st.session_state.lang = "ru"
 
 def t(ru_text, en_text):
-    """Функция перевода. Возвращает текст на выбранном языке."""
     return ru_text if st.session_state.lang == "ru" else en_text
 
-# Переключатель языка в сайдбаре
 lang_choice = st.sidebar.radio("Язык / Language", ["Русский", "English"], index=0 if st.session_state.lang == "ru" else 1)
 if (lang_choice == "Русский" and st.session_state.lang != "ru") or (lang_choice == "English" and st.session_state.lang != "en"):
     st.session_state.lang = "ru" if lang_choice == "Русский" else "en"
@@ -50,7 +48,7 @@ def extract_text_from_file(file) -> str:
                 text += para.text + "\n"
     return text.strip()
 
-# --- 5. СТРУКТУРА ОТВЕТА ОТ ИИ (Схема) ---
+# --- 5. СТРУКТУРА ОТВЕТА ОТ ИИ ---
 class RiskItem(BaseModel):
     quote: str
     explanation: str
@@ -70,14 +68,11 @@ if uploaded_file is not None:
         st.success(t(f"Текст извлечён ({len(contract_text)} символов).", f"Text extracted ({len(contract_text)} characters)."))
 
         if st.button(t("🔍 Проверить договор", "🔍 Audit Contract"), type="primary"):
-            with st.spinner(t("Нейросеть анализирует договор... (это может занять до 2 минут)", "AI is analyzing the contract... (this may take up to 2 minutes)")):
+            with st.spinner(t("Нейросеть анализирует договор...", "AI is analyzing the contract...")):
                 try:
-                    # ✅ Инициализация клиента Gemini с увеличенным таймаутом (20 минут)
                     client = genai.Client(
                         api_key=st.secrets["GEMINI_API_KEY"],
-                        http_options=types.HttpOptions(
-                            timeout=1_200_000  # Таймаут 20 минут (в миллисекундах)
-                        )
+                        http_options=types.HttpOptions(timeout=1_200_000)
                     )
 
                     prompt = f"""
@@ -102,25 +97,21 @@ if uploaded_file is not None:
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
                             response_schema=AuditResponse,
-                            max_output_tokens=8192,  # Явно задаём лимит, чтобы избежать обрезки
+                            max_output_tokens=8192,
                         ),
                     )
-
-                    # --- ДИАГНОСТИКА: показываем, что реально вернула модель ---
-                    st.write("**Отладка: finish_reason**", response.candidates[0].finish_reason)
-                    st.write("**Отладка: сырой текст ответа (response.text)**")
-                    st.code(response.text or "❌ response.text равен None", language=None)
-                    st.write("**Отладка: распарсенный объект (response.parsed)**", response.parsed)
-                    # ---------------------------------------------------------
 
                     audit_result = response.parsed
 
                     if audit_result is None:
-                        st.error(t("Модель не вернула валидный JSON. Проверьте отладочный вывод выше.", 
-                                   "The model did not return valid JSON. Check the debug output above."))
-                        st.stop()  # Останавливаем дальнейшее выполнение
+                        st.error(t("Модель не вернула валидный ответ. Попробуйте ещё раз.", 
+                                   "The model did not return a valid response. Please try again."))
+                        st.stop()
 
                     st.subheader(t("🚨 Найденные риски", "🚨 Found Risks"))
+                    st.caption(t("Нажмите на любой риск, чтобы увидеть детали и безопасную формулировку.", 
+                                 "Click any risk to see details and safe wording."))
+
                     for i, risk in enumerate(audit_result.risks, 1):
                         with st.expander(f"{t('Риск', 'Risk')} {i}: {risk.quote[:80]}..."):
                             st.markdown(f"**{t('Цитата из договора:', 'Quote from contract:')}**")
@@ -134,6 +125,4 @@ if uploaded_file is not None:
                                 st.toast(t("Формулировка показана для копирования.", "Wording displayed for copying."))
 
                 except Exception as e:
-                    # ✅ УЛУЧШЕННАЯ ОБРАБОТКА ОШИБОК
                     st.error(t(f"Произошла ошибка при анализе: {e}", f"An error occurred during analysis: {e}"))
-                    st.info(t("Проверьте, что API-ключ Gemini действителен и добавлен в секреты приложения.", "Please check that the Gemini API key is valid and added to the app secrets."))
