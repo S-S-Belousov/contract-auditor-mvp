@@ -3,3 +3,4 @@ google-genai==1.9.0
 pdfplumber==0.11.4
 python-docx==1.1.2
 pydantic==2.11.0
+st-supabase-connection
