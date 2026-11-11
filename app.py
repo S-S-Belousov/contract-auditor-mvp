@@ -76,10 +76,9 @@ if uploaded_file is not None:
                     # ✅ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Принудительно используем REST и задаём таймаут
                     client = genai.Client(
                         api_key=st.secrets["GEMINI_API_KEY"],
-                        http_options={
-                            "transport": "rest",  # Используем REST вместо gRPC
-                            "timeout": 120000,   # Таймаут 120 секунд (в миллисекундах)
-                        }
+                        http_options=types.HttpOptions(
+                            timeout=120000  # Таймаут 120 секунд (в миллисекундах)
+                        )
                     )
 
                     prompt = f"""
