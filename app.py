@@ -70,14 +70,13 @@ if uploaded_file is not None:
         st.success(t(f"Текст извлечён ({len(contract_text)} символов).", f"Text extracted ({len(contract_text)} characters)."))
 
         if st.button(t("🔍 Проверить договор", "🔍 Audit Contract"), type="primary"):
-            # Улучшенный спиннер с таймаутом
             with st.spinner(t("Нейросеть анализирует договор... (это может занять до 2 минут)", "AI is analyzing the contract... (this may take up to 2 minutes)")):
                 try:
-                    # ✅ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Принудительно используем REST и задаём таймаут
+                    # ✅ Инициализация клиента Gemini с увеличенным таймаутом (20 минут)
                     client = genai.Client(
                         api_key=st.secrets["GEMINI_API_KEY"],
                         http_options=types.HttpOptions(
-                            timeout=120000  # Таймаут 120 секунд (в миллисекундах)
+                            timeout=1_200_000  # Таймаут 20 минут (в миллисекундах)
                         )
                     )
 
@@ -120,8 +119,6 @@ if uploaded_file is not None:
                         st.error(t("Модель не вернула валидный JSON. Проверьте отладочный вывод выше.", 
                                    "The model did not return valid JSON. Check the debug output above."))
                         st.stop()  # Останавливаем дальнейшее выполнение
-
-                    audit_result = response.parsed
 
                     st.subheader(t("🚨 Найденные риски", "🚨 Found Risks"))
                     for i, risk in enumerate(audit_result.risks, 1):
