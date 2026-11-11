@@ -103,8 +103,23 @@ if uploaded_file is not None:
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json",
                             response_schema=AuditResponse,
+                            max_output_tokens=8192,  # Явно задаём лимит, чтобы избежать обрезки
                         ),
                     )
+
+                    # --- ДИАГНОСТИКА: показываем, что реально вернула модель ---
+                    st.write("**Отладка: finish_reason**", response.candidates[0].finish_reason)
+                    st.write("**Отладка: сырой текст ответа (response.text)**")
+                    st.code(response.text or "❌ response.text равен None", language=None)
+                    st.write("**Отладка: распарсенный объект (response.parsed)**", response.parsed)
+                    # ---------------------------------------------------------
+
+                    audit_result = response.parsed
+
+                    if audit_result is None:
+                        st.error(t("Модель не вернула валидный JSON. Проверьте отладочный вывод выше.", 
+                                   "The model did not return valid JSON. Check the debug output above."))
+                        st.stop()  # Останавливаем дальнейшее выполнение
 
                     audit_result = response.parsed
 
