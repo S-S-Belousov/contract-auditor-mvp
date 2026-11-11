@@ -70,13 +70,18 @@ if uploaded_file is not None:
         st.success(t(f"Текст извлечён ({len(contract_text)} символов).", f"Text extracted ({len(contract_text)} characters)."))
 
         if st.button(t("🔍 Проверить договор", "🔍 Audit Contract"), type="primary"):
-            with st.spinner(t("Нейросеть анализирует договор...", "AI is analyzing the contract...")):
+            # Улучшенный спиннер с таймаутом
+            with st.spinner(t("Нейросеть анализирует договор... (это может занять до 2 минут)", "AI is analyzing the contract... (this may take up to 2 minutes)")):
                 try:
-                    # Инициализация клиента Gemini
-                    # Ключ будет браться из секретов Streamlit Cloud
-                    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+                    # ✅ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Принудительно используем REST и задаём таймаут
+                    client = genai.Client(
+                        api_key=st.secrets["GEMINI_API_KEY"],
+                        http_options={
+                            "transport": "rest",  # Используем REST вместо gRPC
+                            "timeout": 120000,   # Таймаут 120 секунд (в миллисекундах)
+                        }
+                    )
 
-                    # Формируем промпт
                     prompt = f"""
                     Ты — опытный юрист, специализирующийся на защите интересов IT-фрилансеров и digital-агентств.
                     Проанализируй текст договора ниже. Найди 3-5 самых опасных пунктов, которые:
@@ -93,7 +98,6 @@ if uploaded_file is not None:
                     {contract_text[:15000]}
                     """
 
-                    # Запрос к Gemini со структурированным выводом
                     response = client.models.generate_content(
                         model='gemini-3.8-flash',
                         contents=prompt,
@@ -103,10 +107,8 @@ if uploaded_file is not None:
                         ),
                     )
 
-                    # Парсим ответ
                     audit_result = response.parsed
 
-                    # Отображаем результаты
                     st.subheader(t("🚨 Найденные риски", "🚨 Found Risks"))
                     for i, risk in enumerate(audit_result.risks, 1):
                         with st.expander(f"{t('Риск', 'Risk')} {i}: {risk.quote[:80]}..."):
@@ -121,5 +123,6 @@ if uploaded_file is not None:
                                 st.toast(t("Формулировка показана для копирования.", "Wording displayed for copying."))
 
                 except Exception as e:
-                    st.error(t(f"Произошла ошибка: {e}", f"An error occurred: {e}"))
-                    st.info(t("Проверьте, что API-ключ Gemini добавлен в секреты приложения.", "Check that the Gemini API key is added to the app secrets."))
+                    # ✅ УЛУЧШЕННАЯ ОБРАБОТКА ОШИБОК
+                    st.error(t(f"Произошла ошибка при анализе: {e}", f"An error occurred during analysis: {e}"))
+                    st.info(t("Проверьте, что API-ключ Gemini действителен и добавлен в секреты приложения.", "Please check that the Gemini API key is valid and added to the app secrets."))
